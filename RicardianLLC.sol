@@ -49,15 +49,6 @@ contract RicardianLLC {
     /*****************
     INTERNAL FUNCTIONS
     *****************/
-    function _mint(address to) private { 
-        totalSupply++;
-        uint256 tokenId = totalSupply;
-        balanceOf[to]++;
-        ownerOf[tokenId] = to;
-        tokenURI[tokenId] = "";
-        emit Transfer(address(0), to, tokenId); 
-    }
-    
     function _transfer(address from, address to, uint256 tokenId) private {
         require(from == ownerOf[tokenId], "!owner");
         balanceOf[from]--; 
@@ -70,15 +61,36 @@ contract RicardianLLC {
     /*************
     PUBLIC MINTING
     *************/
-    function mintLLC(address to) external payable { 
+    receive() external payable {
         require(msg.value == mintFee, "!mintFee"); // call with ETH fee
-        _mint(to);
+        totalSupply++;
+        uint256 tokenId = totalSupply;
+        balanceOf[msg.sender]++;
+        ownerOf[tokenId] = msg.sender;
+        tokenURI[tokenId] = "";
+        emit Transfer(address(0), msg.sender, tokenId); 
+    }
+    
+    function mintLLC(address to) external payable returns (uint256 series) { 
+        require(msg.value == mintFee, "!mintFee"); // call with ETH fee
+        totalSupply++;
+        uint256 tokenId = totalSupply;
+        balanceOf[to]++;
+        ownerOf[tokenId] = to;
+        tokenURI[tokenId] = "";
+        emit Transfer(address(0), to, tokenId); 
+        return tokenId;
     }
     
     function mintLLCbatch(address[] calldata to) external payable {
         require(msg.value == mintFee * to.length, "!mintFee"); // call with ETH fee adjusted for batch
         for (uint256 i = 0; i < to.length; i++) {
-            _mint(to[i]); 
+            totalSupply++;
+            uint256 tokenId = totalSupply;
+            balanceOf[to[i]]++;
+            ownerOf[tokenId] = to[i];
+            tokenURI[tokenId] = "";
+            emit Transfer(address(0), to[i], tokenId); 
         }
     }
     
@@ -98,13 +110,23 @@ contract RicardianLLC {
     }
     
     function transfer(address to, uint256 tokenId) external {
-        _transfer(msg.sender, to, tokenId);
+        require(msg.sender == ownerOf[tokenId], "!owner");
+        balanceOf[msg.sender]--; 
+        balanceOf[to]++; 
+        getApproved[tokenId] = address(0); // reset approval
+        ownerOf[tokenId] = to;
+        emit Transfer(msg.sender, to, tokenId); 
     }
     
     function transferBatch(address[] calldata to, uint256[] calldata tokenId) external {
         require(to.length == tokenId.length, "!to/tokenId");
         for (uint256 i = 0; i < to.length; i++) {
-            _transfer(msg.sender, to[i], tokenId[i]);
+            require(msg.sender == ownerOf[tokenId[i]], "!owner");
+            balanceOf[msg.sender]--; 
+            balanceOf[to[i]]++; 
+            getApproved[tokenId[i]] = address(0); // reset approval
+            ownerOf[tokenId[i]] = to[i];
+            emit Transfer(msg.sender, to[i], tokenId[i]); 
         }
     }
     
@@ -150,24 +172,45 @@ contract RicardianLLC {
         _;
     }
     
-    function govMintLLC(address to) external onlyGovernance { 
-        _mint(to);
+    function govMintLLC(address to) external onlyGovernance returns (uint256 series) { 
+        totalSupply++;
+        uint256 tokenId = totalSupply;
+        balanceOf[to]++;
+        ownerOf[tokenId] = to;
+        tokenURI[tokenId] = "";
+        emit Transfer(address(0), to, tokenId); 
+        return tokenId;
     }
     
     function govMintLLCbatch(address[] calldata to) external onlyGovernance {
         for (uint256 i = 0; i < to.length; i++) {
-            _mint(to[i]); 
+            totalSupply++;
+            uint256 tokenId = totalSupply;
+            balanceOf[to[i]]++;
+            ownerOf[tokenId] = to[i];
+            tokenURI[tokenId] = "";
+            emit Transfer(address(0), to[i], tokenId); 
         }
     }
     
     function govTransferFrom(address from, address to, uint256 tokenId) external onlyGovernance {
-        _transfer(from, to, tokenId);
+        require(from == ownerOf[tokenId], "!owner");
+        balanceOf[from]--; 
+        balanceOf[to]++; 
+        getApproved[tokenId] = address(0); // reset approval
+        ownerOf[tokenId] = to;
+        emit Transfer(from, to, tokenId); 
     }
     
     function govTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) external {
         require(from.length == to.length && to.length == tokenId.length, "!from/to/tokenId");
         for (uint256 i = 0; i < from.length; i++) {
-            _transfer(from[i], to[i], tokenId[i]);
+            require(from[i] == ownerOf[tokenId[i]], "!owner");
+            balanceOf[from[i]]--; 
+            balanceOf[to[i]]++; 
+            getApproved[tokenId[i]] = address(0); // reset approval
+            ownerOf[tokenId[i]] = to[i];
+            emit Transfer(from[i], to[i], tokenId[i]); 
         }
     }
     
