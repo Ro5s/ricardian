@@ -78,11 +78,15 @@ contract RicardianLLC {
     
     function mintLLC(address to) external payable { 
         require(msg.value == mintFee, "!mintFee"); // call with ETH fee
+        (bool success, ) = governance.call{value: msg.value}("");
+        require(success, "!ethCall");
         _mint(to);
     }
     
     function mintLLCbatch(address[] calldata to) external payable {
         require(msg.value == mintFee * to.length, "!mintFee"); // call with ETH fee adjusted for batch
+        (bool success, ) = governance.call{value: msg.value}("");
+        require(success, "!ethCall");
         for (uint256 i = 0; i < to.length; i++) {
             _mint(to[i]); 
         }
@@ -165,7 +169,7 @@ contract RicardianLLC {
         _transfer(from, to, tokenId);
     }
     
-    function govTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) external {
+    function govTransferFromBatch(address[] calldata from, address[] calldata to, uint256[] calldata tokenId) external onlyGovernance {
         require(from.length == to.length && to.length == tokenId.length, "!from/to/tokenId");
         for (uint256 i = 0; i < from.length; i++) {
             _transfer(from[i], to[i], tokenId[i]);
