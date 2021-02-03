@@ -34,10 +34,10 @@ contract RicardianLLC {
     event Approval(address indexed approver, address indexed spender, uint256 indexed tokenId);
     event ApprovalForAll(address indexed approver, address indexed operator, bool approved);
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
-    event GovTribute(address indexed caller, uint256 amount, string details);
+    event GovTribute(address indexed caller, uint256 indexed amount, string details);
     event GovUpdateSettings(address indexed governance, uint256 indexed mintFee, string masterOperatingAgreement);
     event GovUpdateTokenURI(uint256 indexed tokenId, string tokenURI);
-    event UpdateSale(uint256 price, uint256 indexed tokenId);
+    event UpdateSale(uint256 indexed price, uint256 indexed tokenId);
     
     constructor(address _governance, string memory _masterOperatingAgreement) {
         governance = _governance; 
@@ -107,8 +107,9 @@ contract RicardianLLC {
         emit ApprovalForAll(msg.sender, operator, approved);
     }
     
-    function transfer(address to, uint256 tokenId) external {
+    function transfer(address to, uint256 tokenId) external returns (bool) { // erc20 formatted transfer
         _transfer(msg.sender, to, tokenId);
+        return true;
     }
     
     function transferBatch(address[] calldata to, uint256[] calldata tokenId) external {
@@ -128,7 +129,7 @@ contract RicardianLLC {
     // ***********
     function purchase(uint256 tokenId) external payable {
         uint256 price = salePrice[tokenId];
-        require(price > 0, "!forSale");
+        require(price > 0, "!forSale"); // price must be non-zero to be considered 'for sale'
         require(msg.value == price, "!price");
         address owner = ownerOf[tokenId];
         (bool success, ) = owner.call{value: msg.value}("");
@@ -146,7 +147,7 @@ contract RicardianLLC {
         salePrice[tokenId] = price;
         emit UpdateSale(price, tokenId);
     }
-
+    
     /*******************
     GOVERNANCE FUNCTIONS
     *******************/
