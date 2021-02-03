@@ -26,8 +26,8 @@ contract RicardianLLC {
     mapping(address => uint256) public balanceOf;
     mapping(uint256 => address) public getApproved;
     mapping(uint256 => address) public ownerOf;
-    mapping(uint256 => uint256) public salePrice;
     mapping(uint256 => string) public tokenURI;
+    mapping(uint256 => Sale) public sale;
     mapping(bytes4 => bool) public supportsInterface; // eip-165 
     mapping(address => mapping(address => bool)) public isApprovedForAll;
     
@@ -39,6 +39,11 @@ contract RicardianLLC {
     event GovUpdateTokenURI(uint256 indexed tokenId, string tokenURI);
     event UpdateSale(uint256 indexed price, uint256 indexed tokenId);
     
+    struct Sale {
+        address buyer;
+        uint256 price;
+    }
+    
     constructor(address _governance, string memory _masterOperatingAgreement) {
         governance = _governance; 
         masterOperatingAgreement = _masterOperatingAgreement; 
@@ -46,9 +51,9 @@ contract RicardianLLC {
         supportsInterface[0x5b5e139f] = true; // METADATA
     }
     
-    /*****************
-    INTERNAL FUNCTIONS
-    *****************/
+    /****************
+    PRIVATE FUNCTIONS
+    ****************/
     function _mint(address to) private { 
         totalSupply++;
         uint256 tokenId = totalSupply;
@@ -64,7 +69,8 @@ contract RicardianLLC {
         balanceOf[to]++; 
         getApproved[tokenId] = address(0); // reset approval
         ownerOf[tokenId] = to;
-        salePrice[tokenId] = 0; // reset sale price
+        sale[tokenId].buyer = address(0); // reset buyer address
+        sale[tokenId].price = 0; // reset sale price
         emit Transfer(from, to, tokenId); 
     }
     
@@ -128,7 +134,10 @@ contract RicardianLLC {
     // PUBLIC SALE
     // ***********
     function purchase(uint256 tokenId) external payable {
-        uint256 price = salePrice[tokenId];
+        if (sale[tokenId].buyer != address(0)) { // if buyer is preset, require caller match
+            require(msg.sender == sale[tokenId].buyer, "!buyer");
+        }
+        uint256 price = sale[tokenId].price;
         require(price > 0, "!forSale"); // price must be non-zero to be considered 'for sale'
         require(msg.value == price, "!price");
         address owner = ownerOf[tokenId];
@@ -138,13 +147,15 @@ contract RicardianLLC {
         balanceOf[msg.sender]++; 
         getApproved[tokenId] = address(0); // reset approval
         ownerOf[tokenId] = msg.sender;
-        salePrice[tokenId] = 0; // reset sale price
+        sale[tokenId].buyer = address(0); // reset buyer address
+        sale[tokenId].price = 0; // reset sale price
         emit Transfer(owner, msg.sender, tokenId); 
     }
     
-    function updateSale(uint256 price, uint256 tokenId) external {
+    function updateSale(address buyer, uint256 price, uint256 tokenId) external {
         require(msg.sender == ownerOf[tokenId], "!owner");
-        salePrice[tokenId] = price;
+        sale[tokenId].buyer = buyer; // set buyer address
+        sale[tokenId].price = price; // set sale price
         emit UpdateSale(price, tokenId);
     }
     
